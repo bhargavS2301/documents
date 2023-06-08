@@ -1,0 +1,84 @@
+pipeline {
+    agent any
+    
+     tools {
+         
+         maven 'maven'
+     }
+     
+     environment{
+         SCANNER_HOME=tool 'sonar'
+     }
+        stages{
+            
+            stage('git checkout') {
+                steps {
+                  checkout scmGit(branches: [[name: '*/master']], extensions: [], userRemoteConfigs: [[url: 'https://github.com/bhargavS2301/onlinebookstore-javaproject.git']])  
+                    
+                }
+                
+            }
+            
+            stage('build') {
+                steps {
+             sh 'mvn clean install'
+            
+                }
+            }
+            
+            stage('sonar-analysis') {
+                steps {
+                  withSonarQubeEnv('sonar') {
+                      sh ''' $SCANNER_HOME/bin/sonar-scanner -Dsonar.projectName=Devops-ultimate \
+                   -Dsonar.java.binaries=. \
+                   -Dsonar.projectKey=Devops-ultimate '''
+                      
+                }
+            
+                }
+            }
+            
+            stage ('docker image build') {
+              steps {
+                  
+                  script {
+                     withDockerRegistry(credentialsId: '85da09b9-1f85-4bf8-9938-a05d5da35e2d', toolName: 'docker') {
+                        
+                        sh 'docker build -t tomcat .' 
+                         
+                     }
+                      
+                      
+                  }
+              }
+                
+                
+                
+                
+            }
+            
+            stage ('docker image push') {
+              steps {
+                  
+                  script {
+                     withDockerRegistry(credentialsId: '85da09b9-1f85-4bf8-9938-a05d5da35e2d', toolName: 'docker') {
+                        
+                        sh 'docker tag tomcat bhargavk0702/tomcat1:latest'
+                        sh 'docker push bhargavk0702/tomcat1:latest '
+                     }
+                         
+                   }        
+                }
+        
+            }
+            
+            stage('deploy to container') {
+                steps {
+             sh 'docker run -d --name myconatiner -p 8082:8080 bhargavk0702/tomcat1:latest '
+            
+                }
+            }
+            
+            
+        } 
+    }
